@@ -1,4 +1,10 @@
-import { AccountLayout, NATIVE_MINT, Token, TOKEN_PROGRAM_ID, u64 } from "@solana/spl-token";
+import {
+  AccountLayout,
+  NATIVE_MINT,
+  TOKEN_PROGRAM_ID,
+  createInitializeAccountInstruction,
+  createCloseAccountInstruction,
+} from "@solana/spl-token";
 import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import { Instruction } from "../web3/transactions/types";
 
@@ -9,7 +15,7 @@ export type ResolvedTokenAddressInstruction = {
 // TODO use native-mint instead
 export function createWSOLAccountInstructions(
   walletAddress: PublicKey,
-  amountIn: u64,
+  amountIn: BigInt,
   rentExemptLamports: number
 ): ResolvedTokenAddressInstruction {
   const tempAccount = new Keypair();
@@ -17,20 +23,18 @@ export function createWSOLAccountInstructions(
   const createAccountInstruction = SystemProgram.createAccount({
     fromPubkey: walletAddress,
     newAccountPubkey: tempAccount.publicKey,
-    lamports: amountIn.toNumber() + rentExemptLamports,
+    lamports: Number(amountIn) + rentExemptLamports,
     space: AccountLayout.span,
     programId: TOKEN_PROGRAM_ID,
   });
 
-  const initAccountInstruction = Token.createInitAccountInstruction(
-    TOKEN_PROGRAM_ID,
-    NATIVE_MINT,
+  const initAccountInstruction = createInitializeAccountInstruction(
     tempAccount.publicKey,
+    NATIVE_MINT,
     walletAddress
   );
 
-  const closeWSOLAccountInstruction = Token.createCloseAccountInstruction(
-    TOKEN_PROGRAM_ID,
+  const closeWSOLAccountInstruction = createCloseAccountInstruction(
     tempAccount.publicKey,
     walletAddress,
     walletAddress,

@@ -3,7 +3,7 @@
   "compilerOptions": {
     "composite": true
   },
-  "include": ["./**/*",  "./nemoswap/artifacts/**/*.json"],
+  "include": ["./**/*",  "./**/*.json"],
   "typedocOptions": {
     "entryPoints": ["index.ts"],
     "out": "../../target/typedocs"

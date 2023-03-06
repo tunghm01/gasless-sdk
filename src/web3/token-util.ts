@@ -1,47 +1,96 @@
 import {
-  AccountInfo,
   AccountLayout,
   NATIVE_MINT,
-  Token,
-  TOKEN_PROGRAM_ID,
-  u64,
+  Account,
+  createTransferCheckedInstruction,
+  decodeInitializeAccountInstruction,
+  decodeCloseAccountInstruction,
 } from "@solana/spl-token";
-import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
+import { Connection, Transaction, PublicKey, SystemProgram } from "@solana/web3.js";
 import invariant from "tiny-invariant";
-import { ZERO } from "../math";
 import { deriveATA, Instruction, resolveOrCreateATA } from "../web3";
 
 /**
  * @category Util
  */
 export class TokenUtil {
+  /**
+   *
+   * @param transaction
+   * @returns Number of InitializeTokenAccount instructions
+   */
+  public static hasInitializeNativeTokenAccountIx(transaction: Transaction): PublicKey | null {
+    const accounts: PublicKey[] = [];
+    transaction.instructions.forEach((ix) => {
+      try {
+        const init = decodeInitializeAccountInstruction(ix);
+        if (init.keys.mint.pubkey.equals(NATIVE_MINT)) {
+          accounts.push(init.keys.account.pubkey);
+        }
+      } catch (e) {
+        // ignore
+      }
+    });
+    if (accounts.length > 1) {
+      throw new Error(
+        `Only one InitializeNativeTokenAccount instruction is allowed. You have ${accounts.length} instructions`
+      );
+    }
+    if (accounts.length === 1) {
+      return accounts[0];
+    }
+    return null;
+  }
+
+  /**
+   *
+   * @param transaction
+   * @returns Number of CloseAccountInstruction instructions
+   */
+  public static hasCloseTokenAccountIx(
+    transaction: Transaction,
+    closedAccount: PublicKey
+  ): boolean {
+    transaction.instructions.forEach((ix) => {
+      try {
+        const close = decodeCloseAccountInstruction(ix);
+        if (close.keys.account.pubkey.equals(closedAccount)) {
+          return true;
+        }
+      } catch (e) {
+        // ignore
+      }
+    });
+    return false;
+  }
+
   public static isNativeMint(mint: PublicKey) {
     return mint.equals(NATIVE_MINT);
   }
 
-  public static deserializeTokenAccount = (data: Buffer | undefined): AccountInfo | null => {
+  public static deserializeTokenAccount = (data: Buffer | undefined): Account | null => {
     if (!data) {
       return null;
     }
 
-    const accountInfo = AccountLayout.decode(data);
+    const accountInfo: any = AccountLayout.decode(data);
     accountInfo.mint = new PublicKey(accountInfo.mint);
     accountInfo.owner = new PublicKey(accountInfo.owner);
-    accountInfo.amount = u64.fromBuffer(accountInfo.amount);
+    accountInfo.amount = accountInfo.amount;
 
     if (accountInfo.delegateOption === 0) {
       accountInfo.delegate = null;
-      accountInfo.delegatedAmount = new u64(0);
+      accountInfo.delegatedAmount = BigInt(0);
     } else {
       accountInfo.delegate = new PublicKey(accountInfo.delegate);
-      accountInfo.delegatedAmount = u64.fromBuffer(accountInfo.delegatedAmount);
+      accountInfo.delegatedAmount = accountInfo.delegatedAmount;
     }
 
     accountInfo.isInitialized = accountInfo.state !== 0;
     accountInfo.isFrozen = accountInfo.state === 2;
 
     if (accountInfo.isNativeOption === 1) {
-      accountInfo.rentExemptReserve = u64.fromBuffer(accountInfo.isNative);
+      accountInfo.rentExemptReserve = accountInfo.isNative;
       accountInfo.isNative = true;
     } else {
       accountInfo.rentExemptReserve = null;
@@ -54,7 +103,7 @@ export class TokenUtil {
       accountInfo.closeAuthority = new PublicKey(accountInfo.closeAuthority);
     }
 
-    return accountInfo;
+    return accountInfo as Account;
   };
 
   /**
@@ -78,11 +127,11 @@ export class TokenUtil {
     destinationWallet: PublicKey,
     tokenMint: PublicKey,
     tokenDecimals: number,
-    amount: u64,
+    amount: bigint,
     getAccountRentExempt: () => Promise<number>,
     payer?: PublicKey
   ): Promise<Instruction> {
-    invariant(!amount.eq(ZERO), "SendToken transaction must send more than 0 tokens.");
+    invariant(amount > BigInt(0), "SendToken transaction must send more than 0 tokens.");
 
     // Specifically handle SOL, which is not a spl-token.
     if (tokenMint.equals(NATIVE_MINT)) {
@@ -108,15 +157,14 @@ export class TokenUtil {
       payer
     );
 
-    const transferIx = Token.createTransferCheckedInstruction(
-      TOKEN_PROGRAM_ID,
+    const transferIx = createTransferCheckedInstruction(
       sourceTokenAccount,
       tokenMint,
       destinationTokenAccount,
       sourceWallet,
-      [],
-      new u64(amount.toString()),
-      tokenDecimals
+      amount,
+      tokenDecimals,
+      []
     );
 
     return {
