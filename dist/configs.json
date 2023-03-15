@@ -1,0 +1,17 @@
+[
+    {
+        "name": "devnet",
+        "genesisHash": "8NPgK4XmX3z653bZdgePf6JrjqycuQrhLSMMoCXwN3wL",
+        "gasLessServiceURL": "http://localhost:3000/api"
+    },
+    {
+        "name": "testnet",
+        "genesisHash": "3boguCuaPpn6vkaxiGDfcR8yYcokzFDuu3sqWLVoAoUh",
+        "gasLessServiceURL": "http://localhost:3000/api"
+    },
+    {
+        "name": "mainnet",
+        "genesisHash": "3boguCuaPpn6vkaxiGDfcR8yYcokzFDuu3sqWLVoA",
+        "gasLessServiceURL": "http://localhost:3000/api"
+    }
+]
