@@ -1,3 +1,5 @@
+import { QuestionObject } from "../pow";
+
 export type NetworkConfig = {
   name: string;
   genesisHash: string;
@@ -9,3 +11,12 @@ export enum GaslessTypes {
   Dapp = "dapp",
   Pay = "pay",
 }
+
+export type SignedPuzzle = {
+  question: QuestionObject;
+  expired: number;
+  signature: string;
+  feePayer: string;
+};
+
+export type RawSubmitSolution = { address: string; solution: string } & SignedPuzzle;
