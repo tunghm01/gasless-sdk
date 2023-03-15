@@ -9,7 +9,7 @@ import { getMinimumBalanceForRentExemptAccount } from "@solana/spl-token";
 import { getNetwork } from "../gasless/api";
 import { NetworkConfig } from "../gasless";
 import { Artifact, loadArtifacts } from "./artifacts";
-import { TokenUtil } from "../web3";
+import { TokenUtil } from "../helpers/token-util";
 
 export type DappInstruction = { name: string; decodedData: object } & TransactionInstruction;
 
