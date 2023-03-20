@@ -16,16 +16,15 @@ const api_1 = require("../gasless/api");
 const artifacts_1 = require("./artifacts");
 const token_util_1 = require("../helpers/token-util");
 class GaslessDapp {
-    constructor(connection, network, dapps) {
+    constructor(connection, dapps) {
         this.connection = connection;
-        this.network = network;
         this.dapps = dapps;
     }
     static new(connection) {
         return __awaiter(this, void 0, void 0, function* () {
             const network = yield (0, api_1.getNetwork)(connection);
             const dapps = yield (0, artifacts_1.loadArtifacts)(network);
-            return new GaslessDapp(connection, network, dapps);
+            return new GaslessDapp(connection, dapps);
         });
     }
     decodeTransaction(transaction) {

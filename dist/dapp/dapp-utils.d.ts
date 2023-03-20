@@ -1,5 +1,4 @@
 import { Connection, PublicKey, TransactionInstruction, Transaction } from "@solana/web3.js";
-import { NetworkConfig } from "../gasless";
 import { Artifact } from "./artifacts";
 export type DappInstruction = {
     name: string;
@@ -7,9 +6,8 @@ export type DappInstruction = {
 } & TransactionInstruction;
 export declare class GaslessDapp {
     readonly connection: Connection;
-    readonly network: NetworkConfig;
     readonly dapps: Artifact[];
-    constructor(connection: Connection, network: NetworkConfig, dapps: Artifact[]);
+    constructor(connection: Connection, dapps: Artifact[]);
     static new(connection: Connection): Promise<GaslessDapp>;
     decodeTransaction(transaction: Transaction): DappInstruction[];
     hasDappInstruction(transaction: Transaction): boolean;
