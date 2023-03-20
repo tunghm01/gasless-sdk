@@ -4,10 +4,19 @@ import {
   Transaction,
   TransactionInstruction,
   PublicKey,
+  Keypair,
 } from "@solana/web3.js";
-import { getGaslessInfo } from "./api";
 import { GaslessDapp } from "../dapp";
 import { GaslessTypes } from "./types";
+import {
+  RawSubmitSolution,
+  getPuzzle,
+  postSolution,
+  getGaslessInfo,
+  sendToGasless,
+} from "../gasless";
+import { POWPuzzle, Question } from "../pow";
+import { Wallet } from "@project-serum/anchor";
 
 export type CompressedIx = {
   instructions: TransactionInstruction[];
@@ -22,7 +31,7 @@ export class GaslessTransaction {
 
   constructor(
     readonly connection: Connection,
-    readonly walletPub: PublicKey,
+    readonly wallet: Wallet,
     readonly dapp: GaslessDapp,
     gaslessType: GaslessTypes = GaslessTypes.POW
   ) {
@@ -33,13 +42,13 @@ export class GaslessTransaction {
 
   static fromTransactionBuilder(
     connection: Connection,
-    walletPub: PublicKey,
+    wallet: Wallet,
     compressIx: CompressedIx,
-    dapp: GaslessDapp
+    dappUtil: GaslessDapp
   ): GaslessTransaction {
     const { instructions, cleanupInstructions, signers } = compressIx;
 
-    const _this = new GaslessTransaction(connection, walletPub, dapp);
+    const _this = new GaslessTransaction(connection, wallet, dappUtil);
 
     _this.addSigners(signers);
     _this.addInstructions(instructions);
@@ -78,9 +87,9 @@ export class GaslessTransaction {
     const { feePayer } = await getGaslessInfo(this.connection);
 
     if (this.gaslessType === GaslessTypes.Dapp) {
-      this.transaction = await this.dapp.build(this.transaction, this.walletPub, feePayer);
-    }
-    if (this.gaslessType === GaslessTypes.POW) {
+      this.transaction = await this.dapp.build(this.transaction, this.wallet.publicKey, feePayer);
+    } else if (this.gaslessType === GaslessTypes.POW) {
+      // TODO:
     } else {
       throw Error(`${this.gaslessType} not supported`);
     }
@@ -92,5 +101,57 @@ export class GaslessTransaction {
       this.transaction.sign(s);
     }
     return this.transaction;
+  }
+
+  async buildAndExecute(): Promise<string> {
+    // Automatically detect the dapp type
+    if (this.dapp.hasDappInstruction(this.transaction)) {
+      this.gaslessType = GaslessTypes.Dapp;
+    }
+    const { feePayer } = await getGaslessInfo(this.connection);
+
+    if (this.gaslessType === GaslessTypes.Dapp) {
+      this.transaction = await this.dapp.build(this.transaction, this.wallet.publicKey, feePayer);
+      this.transaction.feePayer = feePayer;
+      this.transaction.recentBlockhash = (await this.connection.getRecentBlockhash()).blockhash;
+      for (let i = 0; i < this.signers.length; i++) {
+        const s = this.signers[i];
+        this.transaction.sign(s);
+      }
+      this.transaction = await this.wallet.signTransaction(this.transaction);
+      const txid = await sendToGasless(this.connection, this.transaction, this.gaslessType);
+      return txid;
+    } else if (this.gaslessType === GaslessTypes.POW) {
+      const puzzle = await getPuzzle(this.connection, this.wallet.publicKey);
+      const solution = await POWPuzzle.solveAsync(Question.fromObject(puzzle.question));
+      const rawSolution: RawSubmitSolution = {
+        address: this.wallet.publicKey.toBase58(),
+        solution: solution.toString(16),
+        ...puzzle,
+      };
+
+      this.transaction.feePayer = feePayer;
+      this.transaction.recentBlockhash = (await this.connection.getRecentBlockhash()).blockhash;
+      for (let i = 0; i < this.signers.length; i++) {
+        const s = this.signers[i];
+        this.transaction.sign(s);
+      }
+      this.transaction = await this.wallet.signTransaction(this.transaction);
+      const txid = await postSolution(this.connection, rawSolution, this.transaction);
+      return txid;
+    } else {
+      throw Error(`${this.gaslessType} not supported`);
+    }
+  }
+
+  asyncBuildAndExecute(cb: (error: any, txid: string) => void): void {
+    setTimeout(async () => {
+      try {
+        const txid = await this.buildAndExecute();
+        cb(null, txid);
+      } catch (e) {
+        cb(e, "");
+      }
+    }, 0);
   }
 }

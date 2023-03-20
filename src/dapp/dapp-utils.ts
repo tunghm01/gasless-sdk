@@ -7,23 +7,18 @@ import {
 } from "@solana/web3.js";
 import { getMinimumBalanceForRentExemptAccount } from "@solana/spl-token";
 import { getNetwork } from "../gasless/api";
-import { NetworkConfig } from "../gasless";
 import { Artifact, loadArtifacts } from "./artifacts";
-import { TokenUtil } from "../web3";
+import { TokenUtil } from "../helpers/token-util";
 
 export type DappInstruction = { name: string; decodedData: object } & TransactionInstruction;
 
 export class GaslessDapp {
-  constructor(
-    readonly connection: Connection,
-    readonly network: NetworkConfig,
-    readonly dapps: Artifact[]
-  ) {}
+  constructor(readonly connection: Connection, readonly dapps: Artifact[]) {}
 
   static async new(connection: Connection): Promise<GaslessDapp> {
     const network = await getNetwork(connection);
     const dapps = await loadArtifacts(network);
-    return new GaslessDapp(connection, network, dapps);
+    return new GaslessDapp(connection, dapps);
   }
 
   decodeTransaction(transaction: Transaction): DappInstruction[] {
