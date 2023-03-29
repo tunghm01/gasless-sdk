@@ -15,4 +15,5 @@ export declare class TokenUtil {
      * @returns Number of CloseAccountInstruction instructions
      */
     static hasCloseTokenAccountIx(transaction: Transaction, closedAccount: PublicKey): boolean;
+    static replaceFundingAccountOfCreateATAIx(transaction: Transaction, feePayer: PublicKey): Transaction;
 }

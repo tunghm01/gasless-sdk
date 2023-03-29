@@ -19,7 +19,6 @@ export declare class GaslessTransaction {
     addSigners(signers: Signer[]): GaslessTransaction;
     addInstructions(ixs: TransactionInstruction[]): GaslessTransaction;
     setGaslessType(gaslessType: GaslessTypes): GaslessTransaction;
-    build(gaslessType?: GaslessTypes): Promise<Transaction>;
     buildAndExecute(): Promise<string>;
     asyncBuildAndExecute(cb: (error: any, txid: string) => void): void;
 }

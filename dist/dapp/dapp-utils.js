@@ -46,7 +46,7 @@ class GaslessDapp {
     }
     addBorrowRepayForRentExemption(transaction, wallet, feePayer) {
         return __awaiter(this, void 0, void 0, function* () {
-            const rentExemption = yield (0, spl_token_1.getMinimumBalanceForRentExemptAccount)(this.connection);
+            const rentExemption = yield spl_token_1.Token.getMinBalanceRentForExemptAccount(this.connection);
             const tx = new web3_js_1.Transaction();
             tx.add(web3_js_1.SystemProgram.transfer({
                 fromPubkey: feePayer,

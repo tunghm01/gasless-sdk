@@ -1,7 +1,7 @@
 [
     {
         "name": "devnet",
-        "genesisHash": "8NPgK4XmX3z653bZdgePf6JrjqycuQrhLSMMoCXwN3wL",
+        "genesisHash": "5QGGcsQKmWxGwrB8Rwnefbi1PTaVZMp5deRSr7SttJ1o",
         "gasLessServiceURL" : "http://localhost:3000/api"
     },
     {

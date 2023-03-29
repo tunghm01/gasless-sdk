@@ -1,11 +1,4 @@
-import {
-  Connection,
-  Signer,
-  Transaction,
-  TransactionInstruction,
-  PublicKey,
-  Keypair,
-} from "@solana/web3.js";
+import { Connection, Signer, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { GaslessDapp } from "../dapp";
 import { GaslessTypes } from "./types";
 import {
@@ -17,6 +10,7 @@ import {
 } from "../gasless";
 import { POWPuzzle, Question } from "../pow";
 import { Wallet } from "@project-serum/anchor";
+import { TokenUtil } from "../helpers/token-util";
 
 export type CompressedIx = {
   instructions: TransactionInstruction[];
@@ -75,33 +69,33 @@ export class GaslessTransaction {
     return this;
   }
 
-  async build(gaslessType?: GaslessTypes): Promise<Transaction> {
-    if (gaslessType) {
-      this.gaslessType = gaslessType;
-    } else {
-      // Automatically detect the dapp type
-      if (this.dapp.hasDappInstruction(this.transaction)) {
-        this.gaslessType = GaslessTypes.Dapp;
-      }
-    }
-    const { feePayer } = await getGaslessInfo(this.connection);
+  // async build(gaslessType?: GaslessTypes): Promise<Transaction> {
+  //   if (gaslessType) {
+  //     this.gaslessType = gaslessType;
+  //   } else {
+  //     // Automatically detect the dapp type
+  //     if (this.dapp.hasDappInstruction(this.transaction)) {
+  //       this.gaslessType = GaslessTypes.Dapp;
+  //     }
+  //   }
+  //   const { feePayer } = await getGaslessInfo(this.connection);
 
-    if (this.gaslessType === GaslessTypes.Dapp) {
-      this.transaction = await this.dapp.build(this.transaction, this.wallet.publicKey, feePayer);
-    } else if (this.gaslessType === GaslessTypes.POW) {
-      // TODO:
-    } else {
-      throw Error(`${this.gaslessType} not supported`);
-    }
-    this.transaction.feePayer = feePayer;
-    this.transaction.recentBlockhash = (await this.connection.getRecentBlockhash()).blockhash;
+  //   if (this.gaslessType === GaslessTypes.Dapp) {
+  //     this.transaction = await this.dapp.build(this.transaction, this.wallet.publicKey, feePayer);
+  //   } else if (this.gaslessType === GaslessTypes.POW) {
+  //     // TODO:
+  //   } else {
+  //     throw Error(`${this.gaslessType} not supported`);
+  //   }
+  //   this.transaction.feePayer = feePayer;
+  //   this.transaction.recentBlockhash = (await this.connection.getRecentBlockhash()).blockhash;
 
-    for (let i = 0; i < this.signers.length; i++) {
-      const s = this.signers[i];
-      this.transaction.sign(s);
-    }
-    return this.transaction;
-  }
+  //   for (let i = 0; i < this.signers.length; i++) {
+  //     const s = this.signers[i];
+  //     this.transaction.sign(s);
+  //   }
+  //   return this.transaction;
+  // }
 
   async buildAndExecute(): Promise<string> {
     // Automatically detect the dapp type
@@ -130,8 +124,12 @@ export class GaslessTransaction {
         ...puzzle,
       };
 
+      // pay for initializing token account fee
+      this.transaction = TokenUtil.replaceFundingAccountOfCreateATAIx(this.transaction, feePayer);
+
       this.transaction.feePayer = feePayer;
       this.transaction.recentBlockhash = (await this.connection.getRecentBlockhash()).blockhash;
+
       for (let i = 0; i < this.signers.length; i++) {
         const s = this.signers[i];
         this.transaction.sign(s);

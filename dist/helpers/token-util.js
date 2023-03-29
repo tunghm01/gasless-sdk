@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TokenUtil = void 0;
 const spl_token_1 = require("@solana/spl-token");
+const decoder_1 = require("./decoder");
 /**
  * @category Util
  */
@@ -15,7 +16,7 @@ class TokenUtil {
         const accounts = [];
         transaction.instructions.forEach((ix) => {
             try {
-                const init = (0, spl_token_1.decodeInitializeAccountInstruction)(ix);
+                const init = (0, decoder_1.decodeInitializeAccountInstruction)(ix);
                 if (init.keys.mint.pubkey.equals(spl_token_1.NATIVE_MINT)) {
                     accounts.push(init.keys.account.pubkey);
                 }
@@ -40,7 +41,7 @@ class TokenUtil {
     static hasCloseTokenAccountIx(transaction, closedAccount) {
         transaction.instructions.forEach((ix) => {
             try {
-                const close = (0, spl_token_1.decodeCloseAccountInstruction)(ix);
+                const close = (0, decoder_1.decodeCloseAccountInstruction)(ix);
                 if (close.keys.account.pubkey.equals(closedAccount)) {
                     return true;
                 }
@@ -50,6 +51,21 @@ class TokenUtil {
             }
         });
         return false;
+    }
+    static replaceFundingAccountOfCreateATAIx(transaction, feePayer) {
+        transaction.instructions.forEach((ix) => {
+            try {
+                (0, decoder_1.decodeCreateAssociatedTokenInstruction)(ix);
+                console.log("detected");
+                // reassign funding account to fee payer
+                ix.keys[0].pubkey = feePayer;
+            }
+            catch (e) {
+                // ignore
+                console.log("not detected", e);
+            }
+        });
+        return transaction;
     }
 }
 exports.TokenUtil = TokenUtil;
