@@ -1,9 +1,10 @@
-import {
-  NATIVE_MINT,
-  decodeInitializeAccountInstruction,
-  decodeCloseAccountInstruction,
-} from "@solana/spl-token";
+import { NATIVE_MINT } from "@solana/spl-token";
 import { Transaction, PublicKey } from "@solana/web3.js";
+import {
+  decodeCloseAccountInstruction,
+  decodeInitializeAccountInstruction,
+  decodeCreateAssociatedTokenInstruction,
+} from "./decoder";
 
 /**
  * @category Util
@@ -57,5 +58,21 @@ export class TokenUtil {
       }
     });
     return false;
+  }
+
+  public static replaceFundingAccountOfCreateATAIx(
+    transaction: Transaction,
+    feePayer: PublicKey
+  ): Transaction {
+    transaction.instructions.forEach((ix) => {
+      try {
+        decodeCreateAssociatedTokenInstruction(ix);
+        // reassign funding account to fee payer
+        ix.keys[0].pubkey = feePayer;
+      } catch (e) {
+        // ignore
+      }
+    });
+    return transaction;
   }
 }

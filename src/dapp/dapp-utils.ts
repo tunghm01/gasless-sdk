@@ -5,7 +5,7 @@ import {
   TransactionInstruction,
   Transaction,
 } from "@solana/web3.js";
-import { getMinimumBalanceForRentExemptAccount } from "@solana/spl-token";
+import { Token } from "@solana/spl-token";
 import { getNetwork } from "../gasless/api";
 import { Artifact, loadArtifacts } from "./artifacts";
 import { TokenUtil } from "../helpers/token-util";
@@ -45,7 +45,7 @@ export class GaslessDapp {
     wallet: PublicKey,
     feePayer: PublicKey
   ): Promise<Transaction> {
-    const rentExemption = await getMinimumBalanceForRentExemptAccount(this.connection);
+    const rentExemption = await Token.getMinBalanceRentForExemptAccount(this.connection);
     const tx = new Transaction();
     tx.add(
       SystemProgram.transfer({
