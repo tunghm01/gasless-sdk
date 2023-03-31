@@ -56,13 +56,11 @@ class TokenUtil {
         transaction.instructions.forEach((ix) => {
             try {
                 (0, decoder_1.decodeCreateAssociatedTokenInstruction)(ix);
-                console.log("detected");
                 // reassign funding account to fee payer
                 ix.keys[0].pubkey = feePayer;
             }
             catch (e) {
                 // ignore
-                console.log("not detected", e);
             }
         });
         return transaction;

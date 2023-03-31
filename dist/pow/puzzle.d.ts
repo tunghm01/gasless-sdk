@@ -11,7 +11,10 @@ export declare class POWPuzzle {
     static isValidSolution(input: HashParams, target: string): boolean;
     static hashSolution(hashParams: HashParams): string;
     static estimateDifficulty(seconds: number): bigint;
-    static estimateTime(difficulty: bigint): object;
+    static estimateTime(difficulty: bigint): {
+        avgTime: number;
+        maxTime: number;
+    };
     /**
      *
      * @returns time in milliseconds to hash 1M times

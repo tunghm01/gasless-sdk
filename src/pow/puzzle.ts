@@ -62,7 +62,7 @@ export class POWPuzzle {
     return bn(difficulty) * bn(2) - bn(1);
   }
 
-  static estimateTime(difficulty: bigint): object {
+  static estimateTime(difficulty: bigint): { avgTime: number; maxTime: number } {
     let time1MHashes = this.time1MHashes();
     const numHashes = this.estimateNumHashes(difficulty);
     const avgTimeInMs = (Number(numHashes) * time1MHashes) / Number(A_MILLION);

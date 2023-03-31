@@ -29,7 +29,7 @@ class Puzzle {
         this.solution = solution;
     }
     toObject() {
-        return Object.assign({ solution: this.solution.toString(16) }, this.question);
+        return Object.assign({ solution: this.solution.toString(16) }, this.question.toObject());
     }
     toString() {
         return this.question.toString() + this.solution.toString(16);

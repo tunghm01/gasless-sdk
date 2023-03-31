@@ -1,13 +1,13 @@
 [
     {
         "name": "devnet",
-        "genesisHash": "5QGGcsQKmWxGwrB8Rwnefbi1PTaVZMp5deRSr7SttJ1o",
+        "genesisHash": "9cMNV5PLw2fMkzD9FNot8EhMz9qvtuXS7gjGFDBqcK53",
         "gasLessServiceURL" : "http://localhost:3000/api"
     },
     {
         "name": "testnet",
         "genesisHash": "3boguCuaPpn6vkaxiGDfcR8yYcokzFDuu3sqWLVoAoUh",
-        "gasLessServiceURL" : "http://localhost:3000/api"
+        "gasLessServiceURL" : "https://restruct-for-amplify-deployment.d2qjlpuikx6xmz.amplifyapp.com/api"
     }, 
     {
         "name": "mainnet",
