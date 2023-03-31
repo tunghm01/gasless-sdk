@@ -1,107 +1,142 @@
-import {
-  Keypair,
-  Connection,
-  PublicKey,
-  Transaction,
-  sendAndConfirmTransaction,
-} from "@solana/web3.js";
-import * as assert from "assert";
-import { POWPuzzle, Question } from "../../src";
-import { GaslessTransaction, RawSubmitSolution, getPuzzle, postSolution } from "../../src/gasless";
+import { Keypair, Connection, PublicKey, TransactionInstruction, Signer } from "@solana/web3.js";
+import { GaslessTransaction, getGaslessInfo, GaslessTypes } from "../../src/gasless";
 import { GaslessDapp } from "../../src/dapp";
-import {
-  getOrCreateAssociatedTokenAccount,
-  createTransferInstruction,
-  createMint,
-  mintTo,
-} from "@solana/spl-token";
+import { Token, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Wallet } from "@project-serum/anchor";
 import { sleep } from "../common";
+const A_SOL = 1_000_000_000;
 
 describe("POW integration gasless service", () => {
-  const DEFAULT_RPC_ENDPOINT_URL = "http://127.0.0.1:8899";
+  const DEFAULT_RPC_ENDPOINT_URL = "https://api-testnet.renec.foundation:8899";
   const connection = new Connection(DEFAULT_RPC_ENDPOINT_URL, "confirmed");
   const alice = Keypair.generate();
   const bob = Keypair.generate();
+  const coby = Keypair.generate();
+
   const aliceWallet = new Wallet(alice);
-  const gaslessPayer = new PublicKey("7ynuZQDBNg3Nu6ApAps11wcSJaVrTkmM3EAhAAFSidTL");
+  let dappUtil;
+  let gaslessTxn: GaslessTransaction;
+  let mockMint: Token;
+  let aliceATA: PublicKey;
+  let cobyATA: PublicKey;
+  let feePayer: PublicKey;
 
-  it(
-    "get puzzle",
-    async () => {
-      await connection.requestAirdrop(alice.publicKey, 100_000_000);
-      await connection.requestAirdrop(gaslessPayer, 1_000_000_000);
-      await sleep(500);
-      const normalTx = await createTransferTx(
-        connection,
-        alice,
-        alice.publicKey,
-        bob.publicKey,
-        20_000_000
-      );
+  beforeAll(async () => {
+    // send a fund to fee payer
+    feePayer = (await getGaslessInfo(connection)).feePayer;
+    await connection.requestAirdrop(feePayer, A_SOL);
+    await connection.requestAirdrop(alice.publicKey, A_SOL);
+    await sleep(1000);
 
-      // Gasless SDK
-      const dappUtil = await GaslessDapp.new(connection); // should init only once
-      const gaslessTx = new GaslessTransaction(connection, aliceWallet, dappUtil);
-      gaslessTx.addInstructions(normalTx.instructions);
+    mockMint = await Token.createMint(
+      connection,
+      alice,
+      alice.publicKey,
+      null,
+      9,
+      TOKEN_PROGRAM_ID
+    );
+    await sleep(1000);
+    aliceATA = await mockMint.createAssociatedTokenAccount(alice.publicKey);
+    cobyATA = await mockMint.createAssociatedTokenAccount(coby.publicKey);
+    await sleep(1000);
+    await mockMint.mintTo(aliceATA, alice, [], A_SOL);
+    await sleep(1000);
+  }, 20 * 1000);
 
-      gaslessTx.asyncBuildAndExecute((error: any, txid: string) => {
-        console.log("asyncBuildAndExecute");
-        console.log(error, txid);
-      });
+  beforeEach(async () => {
+    // set up variables for testing
+    dappUtil = await GaslessDapp.new(connection); // should init only once
+    gaslessTxn = new GaslessTransaction(connection, aliceWallet, dappUtil);
+  });
 
-      console.log("waiting...");
-      await sleep(10 * 1000);
-      //   //
-      //   const puzzle = await getPuzzle(connection, alice.publicKey);
-      //   const solution = await POWPuzzle.solveAsync(Question.fromObject(puzzle.question));
-      //   const rawSolution: RawSubmitSolution = {
-      //     address: alice.publicKey.toBase58(),
-      //     solution: solution.toString(16),
-      //     ...puzzle,
-      //   };
+  it("GaslessTransaction can be created", async () => {
+    expect(gaslessTxn).toBeInstanceOf(GaslessTransaction);
+  });
 
-      //   const unsigned = await gaslessTx.build();
-      //   const signed = await aliceWallet.signTransaction(unsigned);
-      //   try {
-      //     const txid = await postSolution(connection, rawSolution, signed);
-      //     console.log(txid);
-      //   } catch (e) {
-      //     console.log(e);
-      //   }
-    },
-    20 * 1000
-  );
+  it("addSigners should correctly add signers to GaslessTransaction", () => {
+    const signers: Signer[] = [alice];
+    const addedSigners = gaslessTxn.addSigners(signers).signers;
+
+    expect(addedSigners).toHaveLength(1);
+    expect(addedSigners[0].publicKey).toEqual(alice.publicKey);
+  });
+
+  it("addInstructions should correctly add instructions to GaslessTransaction", () => {
+    const randomMint = Keypair.generate();
+    const ix = Token.createInitMintInstruction(
+      TOKEN_PROGRAM_ID,
+      randomMint.publicKey,
+      9,
+      alice.publicKey,
+      null
+    );
+    const instructions: TransactionInstruction[] = [ix];
+    const addedInstructions = gaslessTxn.addInstructions(instructions).transaction.instructions;
+
+    expect(addedInstructions).toHaveLength(1);
+  });
+
+  it("setGaslessType should correctly set the gaslessType of GaslessTransaction", () => {
+    const gaslessType: GaslessTypes = GaslessTypes.Dapp;
+    const setGaslessType = gaslessTxn.setGaslessType(gaslessType).gaslessType;
+
+    expect(setGaslessType).toEqual(gaslessType);
+  });
+
+  describe("buildAndExecute", () => {
+    it(
+      "buildAndExecute should be success",
+      async () => {
+        const instructions: TransactionInstruction[] = [
+          Token.createTransferInstruction(
+            TOKEN_PROGRAM_ID,
+            aliceATA,
+            cobyATA,
+            alice.publicKey,
+            [],
+            10
+          ),
+        ];
+        const txid = await gaslessTxn.addInstructions(instructions).buildAndExecute();
+        expect(typeof txid).toBe("string"); // txid in base58 encoding
+      },
+      20 * 1000
+    );
+
+    // Waiting for gasless service upgrade this feature
+    //   it(
+    //     "buildAndExecute should replace fee payer of create ata instruction",
+    //     async () => {
+    //       const bobATA = await Token.getAssociatedTokenAddress(
+    //         ASSOCIATED_TOKEN_PROGRAM_ID,
+    //         TOKEN_PROGRAM_ID,
+    //         mockMint.publicKey,
+    //         bob.publicKey
+    //       );
+    //       const instructions: TransactionInstruction[] = [
+    //         Token.createAssociatedTokenAccountInstruction(
+    //           ASSOCIATED_TOKEN_PROGRAM_ID,
+    //           TOKEN_PROGRAM_ID,
+    //           mockMint.publicKey,
+    //           bobATA,
+    //           bob.publicKey,
+    //           alice.publicKey
+    //         ),
+    //         Token.createTransferInstruction(
+    //           TOKEN_PROGRAM_ID,
+    //           aliceATA,
+    //           bobATA,
+    //           alice.publicKey,
+    //           [],
+    //           10
+    //         ),
+    //       ];
+
+    //       const txid = await gaslessTxn.addInstructions(instructions).buildAndExecute();
+    //       expect(typeof txid).toBe("string"); // txid in base58 encoding
+    //     },
+    //     20 * 1000
+    //   );
+  });
 });
-
-async function createTransferTx(
-  connection: Connection,
-  payer: Keypair,
-  fromPub: PublicKey,
-  toPub: PublicKey,
-  amount: number
-): Promise<Transaction> {
-  const mintPub = await createMint(connection, payer, payer.publicKey, null, 9);
-  await sleep(500);
-  const ataFrom = await getOrCreateAssociatedTokenAccount(connection, payer, mintPub, fromPub);
-  const ataTo = await getOrCreateAssociatedTokenAccount(connection, payer, mintPub, toPub);
-  await sleep(500);
-  await mintTo(connection, payer, mintPub, ataFrom.address, payer, amount);
-
-  // this is normal transaction
-  const transaction = new Transaction();
-
-  // Add transfer
-  transaction.add(createTransferInstruction(ataFrom.address, ataTo.address, fromPub, amount));
-  return transaction;
-}
-
-// 959064n {
-//     question: {
-//       difficulty: '31e1b1',
-//       salt: '57ab508e58e152b695bca0aac52224ba4afad1f12a751b2931ea0b184cf0570f',
-//       hash: 'a6aca12a56c7c3e55d0a4209045badd2c60ee105f607f8a710c8eae7ac4fd444'
-//     },
-//     expired: 1678774368,
-//     signature: '2zGRg9twxS2PPtdwf1m9yqYYzcjG6nuoW6KSaS39Ko2PmdACHt5vJpKi58aR8UhA7PceBxi6uL9E9kPGWpY4A8Ho'
-//   }

@@ -23,7 +23,3 @@ export function randomInRange(min: number | bigint, max: number | bigint): bigin
 export function sha256(msg: string): string {
   return createHash("sha256").update(msg).digest("hex");
 }
-
-export function toMsg(salt: bigint, solution: bigint): string {
-  return `${salt.toString(16)}${solution.toString(16)}`;
-}

@@ -34,7 +34,7 @@ export class Puzzle {
   constructor(readonly question: Question, readonly solution: Solution) {}
 
   toObject(): object {
-    return { solution: this.solution.toString(16), ...this.question };
+    return { solution: this.solution.toString(16), ...this.question.toObject() };
   }
 
   toString(): string {
