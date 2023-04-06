@@ -7,11 +7,11 @@
     {
         "name": "testnet",
         "genesisHash": "3boguCuaPpn6vkaxiGDfcR8yYcokzFDuu3sqWLVoAoUh",
-        "gasLessServiceURL": "https://pr-10.d2qjlpuikx6xmz.amplifyapp.com/api"
+        "gasLessServiceURL": "https://pr-12.d2qjlpuikx6xmz.amplifyapp.com/api"
     },
     {
         "name": "mainnet",
-        "genesisHash": "3boguCuaPpn6vkaxiGDfcR8yYcokzFDuu3sqWLVoA",
+        "genesisHash": "7PNFRHLxT9FcAxSUcg3P8BraJnnUBnjuy8LwRbRJvVkX",
         "gasLessServiceURL": "https://master.d2qjlpuikx6xmz.amplifyapp.com/api"
     }
 ]
