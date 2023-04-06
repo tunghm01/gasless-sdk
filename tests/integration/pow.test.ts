@@ -101,42 +101,41 @@ describe("POW integration gasless service", () => {
         const txid = await gaslessTxn.addInstructions(instructions).buildAndExecute();
         expect(typeof txid).toBe("string"); // txid in base58 encoding
       },
-      20 * 1000
+      60 * 1000
     );
 
-    // Waiting for gasless service upgrade this feature
-    //   it(
-    //     "buildAndExecute should replace fee payer of create ata instruction",
-    //     async () => {
-    //       const bobATA = await Token.getAssociatedTokenAddress(
-    //         ASSOCIATED_TOKEN_PROGRAM_ID,
-    //         TOKEN_PROGRAM_ID,
-    //         mockMint.publicKey,
-    //         bob.publicKey
-    //       );
-    //       const instructions: TransactionInstruction[] = [
-    //         Token.createAssociatedTokenAccountInstruction(
-    //           ASSOCIATED_TOKEN_PROGRAM_ID,
-    //           TOKEN_PROGRAM_ID,
-    //           mockMint.publicKey,
-    //           bobATA,
-    //           bob.publicKey,
-    //           alice.publicKey
-    //         ),
-    //         Token.createTransferInstruction(
-    //           TOKEN_PROGRAM_ID,
-    //           aliceATA,
-    //           bobATA,
-    //           alice.publicKey,
-    //           [],
-    //           10
-    //         ),
-    //       ];
+    it(
+      "buildAndExecute should replace fee payer of create ata instruction",
+      async () => {
+        const bobATA = await Token.getAssociatedTokenAddress(
+          ASSOCIATED_TOKEN_PROGRAM_ID,
+          TOKEN_PROGRAM_ID,
+          mockMint.publicKey,
+          bob.publicKey
+        );
+        const instructions: TransactionInstruction[] = [
+          Token.createAssociatedTokenAccountInstruction(
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+            TOKEN_PROGRAM_ID,
+            mockMint.publicKey,
+            bobATA,
+            bob.publicKey,
+            alice.publicKey
+          ),
+          Token.createTransferInstruction(
+            TOKEN_PROGRAM_ID,
+            aliceATA,
+            bobATA,
+            alice.publicKey,
+            [],
+            10
+          ),
+        ];
 
-    //       const txid = await gaslessTxn.addInstructions(instructions).buildAndExecute();
-    //       expect(typeof txid).toBe("string"); // txid in base58 encoding
-    //     },
-    //     20 * 1000
-    //   );
+        const txid = await gaslessTxn.addInstructions(instructions).buildAndExecute();
+        expect(typeof txid).toBe("string"); // txid in base58 encoding
+      },
+      60 * 1000
+    );
   });
 });
