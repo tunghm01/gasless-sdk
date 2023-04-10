@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.postSolution = exports.getPuzzle = exports.sendToGasless = exports.getGaslessInfo = exports.getNetwork = void 0;
+exports.postSolution = exports.getPuzzle = exports.getPendingPuzzles = exports.sendToGasless = exports.getGaslessInfo = exports.getNetwork = void 0;
 const axios_1 = __importDefault(require("axios"));
 const bs58_1 = __importDefault(require("bs58"));
 const web3_js_1 = require("@solana/web3.js");
@@ -52,6 +52,20 @@ function sendToGasless(connection, signed, type) {
     });
 }
 exports.sendToGasless = sendToGasless;
+function getPendingPuzzles(connection, address) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const network = yield getNetwork(connection);
+        const response = (yield axios_1.default.get(network.gasLessServiceURL + `/v1/pow/pending-puzzles`, {
+            headers: { Accept: "application/json" },
+            params: {
+                userAddress: address.toBase58(),
+            },
+        })).data;
+        const pendingPuzzles = response === null || response === void 0 ? void 0 : response.pendingPuzzles;
+        return pendingPuzzles;
+    });
+}
+exports.getPendingPuzzles = getPendingPuzzles;
 function getPuzzle(connection, address) {
     return __awaiter(this, void 0, void 0, function* () {
         const network = yield getNetwork(connection);
