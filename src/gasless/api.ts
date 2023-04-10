@@ -41,6 +41,24 @@ export async function sendToGasless(
   return txid;
 }
 
+export async function getPendingPuzzles(
+  connection: Connection,
+  address: PublicKey
+): Promise<number> {
+  const network = await getNetwork(connection);
+  const response = (
+    await axios.get(network.gasLessServiceURL + `/v1/pow/pending-puzzles`, {
+      headers: { Accept: "application/json" },
+      params: {
+        userAddress: address.toBase58(),
+      },
+    })
+  ).data;
+
+  const pendingPuzzles = response?.pendingPuzzles;
+  return pendingPuzzles as number;
+}
+
 export async function getPuzzle(connection: Connection, address: PublicKey): Promise<SignedPuzzle> {
   const network = await getNetwork(connection);
   const response = (

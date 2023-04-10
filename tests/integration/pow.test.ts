@@ -1,8 +1,20 @@
-import { Keypair, Connection, PublicKey, TransactionInstruction, Signer } from "@solana/web3.js";
-import { GaslessTransaction, getGaslessInfo, GaslessTypes } from "../../src/gasless";
+import {
+  Keypair,
+  Connection,
+  PublicKey,
+  TransactionInstruction,
+  Signer,
+  SystemProgram,
+} from "@solana/web3.js";
+import {
+  GaslessTransaction,
+  getGaslessInfo,
+  GaslessTypes,
+  getPendingPuzzles,
+} from "../../src/gasless";
 import { GaslessDapp } from "../../src/dapp";
+import { Wallet } from "../../src/helpers";
 import { Token, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { Wallet } from "@project-serum/anchor";
 import { sleep } from "../common";
 const A_SOL = 1_000_000_000;
 
@@ -86,6 +98,46 @@ describe("POW integration gasless service", () => {
 
   describe("buildAndExecute", () => {
     it(
+      "buildAndExecute should be success when transfer native token",
+      async () => {
+        const instructions: TransactionInstruction[] = [
+          SystemProgram.transfer({
+            fromPubkey: alice.publicKey,
+            toPubkey: coby.publicKey,
+            lamports: 30,
+          }),
+        ];
+
+        const txid = await gaslessTxn.addInstructions(instructions).buildAndExecute();
+        expect(typeof txid).toBe("string"); // txid in base58 encoding
+      },
+      10 * 1000
+    );
+
+    it(
+      "asyncBuildAndExecute should be success when transfer native token",
+      async () => {
+        const instructions: TransactionInstruction[] = [
+          SystemProgram.transfer({
+            fromPubkey: alice.publicKey,
+            toPubkey: coby.publicKey,
+            lamports: 30,
+          }),
+        ];
+
+        gaslessTxn.addInstructions(instructions).asyncBuildAndExecute((error, txid) => {
+          expect(error).toBe(null);
+          expect(typeof txid).toBe("string"); // txid in base58 encoding
+        });
+
+        await sleep(1000);
+        const pendingPuzzles = await getPendingPuzzles(connection, alice.publicKey);
+        expect(pendingPuzzles).toBe(1);
+      },
+      10 * 1000
+    );
+
+    it(
       "buildAndExecute should be success",
       async () => {
         const instructions: TransactionInstruction[] = [
@@ -101,7 +153,7 @@ describe("POW integration gasless service", () => {
         const txid = await gaslessTxn.addInstructions(instructions).buildAndExecute();
         expect(typeof txid).toBe("string"); // txid in base58 encoding
       },
-      60 * 1000
+      10 * 1000
     );
 
     it(
@@ -135,7 +187,7 @@ describe("POW integration gasless service", () => {
         const txid = await gaslessTxn.addInstructions(instructions).buildAndExecute();
         expect(typeof txid).toBe("string"); // txid in base58 encoding
       },
-      60 * 1000
+      10 * 1000
     );
   });
 });
