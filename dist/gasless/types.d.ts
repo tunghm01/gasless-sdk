@@ -12,6 +12,7 @@ export declare enum GaslessTypes {
 export type SignedPuzzle = {
     question: QuestionObject;
     expired: number;
+    allowedSubmissionAt: number;
     signature: string;
     feePayer: string;
 };

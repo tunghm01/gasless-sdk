@@ -1,4 +1,5 @@
 import { Solution, Puzzle, Question } from "./types";
+import { SignedPuzzle } from "../gasless";
 type HashParams = {
     salt: bigint;
     solution: bigint;
@@ -15,11 +16,12 @@ export declare class POWPuzzle {
         avgTime: number;
         maxTime: number;
     };
+    static estHandlingTime(puzzle: SignedPuzzle): number;
     /**
      *
      * @returns time in milliseconds to hash 1M times
      */
-    static time1MHashes(): number;
+    static time100Hashes(): number;
     static estimateNumHashes(difficulty: bigint): bigint;
 }
 export {};

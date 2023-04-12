@@ -1,5 +1,6 @@
 import { Solution, Puzzle, Question } from "./types";
 import { randomInRange, sha256, rng } from "./crypto";
+import { SignedPuzzle } from "../gasless";
 
 const bn = BigInt;
 
@@ -8,7 +9,7 @@ type HashParams = {
   solution: bigint;
 };
 
-const A_MILLION = bn(1_000_000);
+const A_HUNDRED = bn(100);
 
 export class POWPuzzle {
   constructor() {}
@@ -57,30 +58,38 @@ export class POWPuzzle {
   }
 
   static estimateDifficulty(seconds: number): bigint {
-    let time1MHashes = this.time1MHashes();
-    const difficulty = Math.floor((seconds * 1000 * Number(A_MILLION)) / time1MHashes);
+    let time100Hashes = this.time100Hashes();
+    const difficulty = Math.floor((seconds * 1000 * Number(A_HUNDRED)) / time100Hashes);
     return bn(difficulty) * bn(2) - bn(1);
   }
 
   static estimateTime(difficulty: bigint): { avgTime: number; maxTime: number } {
-    let time1MHashes = this.time1MHashes();
+    let time100Hashes = this.time100Hashes();
     const numHashes = this.estimateNumHashes(difficulty);
-    const avgTimeInMs = (Number(numHashes) * time1MHashes) / Number(A_MILLION);
-    const maxTimeInMs = (Number(difficulty) * time1MHashes) / Number(A_MILLION);
-    return { avgTime: Math.floor(avgTimeInMs / 1000), maxTime: Math.floor(maxTimeInMs / 1000) };
+    const avgTimeInMs = Math.floor((Number(numHashes) * time100Hashes) / Number(A_HUNDRED) / 1000);
+    const maxTimeInMs = Math.floor((Number(difficulty) * time100Hashes) / Number(A_HUNDRED) / 1000);
+    return { avgTime: Math.max(avgTimeInMs, 1), maxTime: Math.max(maxTimeInMs, 1) };
+  }
+
+  static estHandlingTime(puzzle: SignedPuzzle): number {
+    const estTimes = this.estimateTime(BigInt(puzzle.question.difficulty));
+
+    const now = Math.floor(Date.now() / 1000);
+    const minHandlingTime = now < puzzle.allowedSubmissionAt ? puzzle.allowedSubmissionAt - now : 0;
+    return Math.max(minHandlingTime, estTimes.avgTime);
   }
 
   /**
    *
    * @returns time in milliseconds to hash 1M times
    */
-  static time1MHashes(): number {
+  static time100Hashes(): number {
     const salt = rng();
     const hash = rng().toString(16);
     let temp = bn(0);
 
     const start = Date.now();
-    while (!this.isValidSolution({ salt, solution: temp }, hash) && temp <= A_MILLION) {
+    while (!this.isValidSolution({ salt, solution: temp }, hash) && temp <= A_HUNDRED) {
       temp++;
     }
     return Date.now() - start;

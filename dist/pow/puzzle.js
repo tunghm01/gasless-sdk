@@ -13,7 +13,7 @@ exports.POWPuzzle = void 0;
 const types_1 = require("./types");
 const crypto_1 = require("./crypto");
 const bn = BigInt;
-const A_MILLION = bn(1000000);
+const A_HUNDRED = bn(100);
 class POWPuzzle {
     constructor() { }
     static generate(difficulty) {
@@ -57,27 +57,33 @@ class POWPuzzle {
         return (0, crypto_1.sha256)(msg);
     }
     static estimateDifficulty(seconds) {
-        let time1MHashes = this.time1MHashes();
-        const difficulty = Math.floor((seconds * 1000 * Number(A_MILLION)) / time1MHashes);
+        let time100Hashes = this.time100Hashes();
+        const difficulty = Math.floor((seconds * 1000 * Number(A_HUNDRED)) / time100Hashes);
         return bn(difficulty) * bn(2) - bn(1);
     }
     static estimateTime(difficulty) {
-        let time1MHashes = this.time1MHashes();
+        let time100Hashes = this.time100Hashes();
         const numHashes = this.estimateNumHashes(difficulty);
-        const avgTimeInMs = (Number(numHashes) * time1MHashes) / Number(A_MILLION);
-        const maxTimeInMs = (Number(difficulty) * time1MHashes) / Number(A_MILLION);
-        return { avgTime: Math.floor(avgTimeInMs / 1000), maxTime: Math.floor(maxTimeInMs / 1000) };
+        const avgTimeInMs = Math.floor((Number(numHashes) * time100Hashes) / Number(A_HUNDRED) / 1000);
+        const maxTimeInMs = Math.floor((Number(difficulty) * time100Hashes) / Number(A_HUNDRED) / 1000);
+        return { avgTime: Math.max(avgTimeInMs, 1), maxTime: Math.max(maxTimeInMs, 1) };
+    }
+    static estHandlingTime(puzzle) {
+        const estTimes = this.estimateTime(BigInt(puzzle.question.difficulty));
+        const now = Math.floor(Date.now() / 1000);
+        const minHandlingTime = now < puzzle.allowedSubmissionAt ? puzzle.allowedSubmissionAt - now : 0;
+        return Math.max(minHandlingTime, estTimes.avgTime);
     }
     /**
      *
      * @returns time in milliseconds to hash 1M times
      */
-    static time1MHashes() {
+    static time100Hashes() {
         const salt = (0, crypto_1.rng)();
         const hash = (0, crypto_1.rng)().toString(16);
         let temp = bn(0);
         const start = Date.now();
-        while (!this.isValidSolution({ salt, solution: temp }, hash) && temp <= A_MILLION) {
+        while (!this.isValidSolution({ salt, solution: temp }, hash) && temp <= A_HUNDRED) {
             temp++;
         }
         return Date.now() - start;

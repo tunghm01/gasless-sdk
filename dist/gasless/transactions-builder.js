@@ -14,7 +14,7 @@ const web3_js_1 = require("@solana/web3.js");
 const types_1 = require("./types");
 const gasless_1 = require("../gasless");
 const pow_1 = require("../pow");
-const token_util_1 = require("../helpers/token-util");
+const helpers_1 = require("../helpers");
 class GaslessTransaction {
     constructor(connection, wallet, dapp, gaslessType = types_1.GaslessTypes.POW) {
         this.connection = connection;
@@ -96,7 +96,12 @@ class GaslessTransaction {
                 const solution = yield pow_1.POWPuzzle.solveAsync(pow_1.Question.fromObject(puzzle.question));
                 const rawSolution = Object.assign({ address: this.wallet.publicKey.toBase58(), solution: solution.toString(16) }, puzzle);
                 // pay for initializing token account fee
-                this.transaction = token_util_1.TokenUtil.replaceFundingAccountOfCreateATAIx(this.transaction, feePayer);
+                this.transaction = helpers_1.TokenUtil.replaceFundingAccountOfCreateATAIx(this.transaction, feePayer);
+                // check if we can submit solution at this point (now >= puzzle.allowedSubmissionAt)
+                const now = Math.floor(Date.now() / 1000);
+                if (puzzle.allowedSubmissionAt && now < puzzle.allowedSubmissionAt) {
+                    yield (0, helpers_1.sleep)((puzzle.allowedSubmissionAt - now) * 1000);
+                }
                 this.transaction.feePayer = feePayer;
                 this.transaction.recentBlockhash = (yield this.connection.getRecentBlockhash()).blockhash;
                 for (let i = 0; i < this.signers.length; i++) {
