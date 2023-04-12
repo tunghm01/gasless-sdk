@@ -10,7 +10,7 @@ import {
 } from "../gasless";
 import { POWPuzzle, Question } from "../pow";
 import { Wallet } from "@project-serum/anchor";
-import { TokenUtil } from "../helpers/token-util";
+import { TokenUtil, sleep } from "../helpers";
 
 export type CompressedIx = {
   instructions: TransactionInstruction[];
@@ -126,6 +126,12 @@ export class GaslessTransaction {
 
       // pay for initializing token account fee
       this.transaction = TokenUtil.replaceFundingAccountOfCreateATAIx(this.transaction, feePayer);
+
+      // check if we can submit solution at this point (now >= puzzle.allowedSubmissionAt)
+      const now = Math.floor(Date.now() / 1000);
+      if (puzzle.allowedSubmissionAt && now < puzzle.allowedSubmissionAt) {
+        await sleep((puzzle.allowedSubmissionAt - now) * 1000);
+      }
 
       this.transaction.feePayer = feePayer;
       this.transaction.recentBlockhash = (await this.connection.getRecentBlockhash()).blockhash;

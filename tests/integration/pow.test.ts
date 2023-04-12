@@ -3,6 +3,8 @@ import {
   Connection,
   PublicKey,
   TransactionInstruction,
+  sendAndConfirmRawTransaction,
+  Transaction,
   Signer,
   SystemProgram,
 } from "@solana/web3.js";
@@ -13,13 +15,13 @@ import {
   getPendingPuzzles,
 } from "../../src/gasless";
 import { GaslessDapp } from "../../src/dapp";
-import { Wallet } from "../../src/helpers";
+import { Wallet, sleep } from "../../src/helpers";
 import { Token, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { sleep } from "../common";
+
 const A_SOL = 1_000_000_000;
 
 describe("POW integration gasless service", () => {
-  const DEFAULT_RPC_ENDPOINT_URL = "https://api-testnet.renec.foundation:8899";
+  const DEFAULT_RPC_ENDPOINT_URL = "http://127.0.0.1:8899";
   const connection = new Connection(DEFAULT_RPC_ENDPOINT_URL, "confirmed");
   const alice = Keypair.generate();
   const bob = Keypair.generate();
@@ -38,6 +40,7 @@ describe("POW integration gasless service", () => {
     feePayer = (await getGaslessInfo(connection)).feePayer;
     await connection.requestAirdrop(feePayer, A_SOL);
     await connection.requestAirdrop(alice.publicKey, A_SOL);
+    await connection.requestAirdrop(coby.publicKey, A_SOL);
     await sleep(1000);
 
     mockMint = await Token.createMint(
@@ -108,31 +111,24 @@ describe("POW integration gasless service", () => {
           }),
         ];
 
+        // const transaction = new Transaction();
+        // transaction.add(instructions[0]);
+        // transaction.feePayer = alice.publicKey;
+        // transaction.recentBlockhash = (await connection.getRecentBlockhash()).blockhash;
+        // transaction.partialSign(alice);
+
+        // const txid = await sendAndConfirmRawTransaction(connection, transaction.serialize(), {
+        //   commitment: "confirmed",
+        // });
+
+        // console.log(txid);
+
+        // try {
         const txid = await gaslessTxn.addInstructions(instructions).buildAndExecute();
         expect(typeof txid).toBe("string"); // txid in base58 encoding
-      },
-      10 * 1000
-    );
-
-    it(
-      "asyncBuildAndExecute should be success when transfer native token",
-      async () => {
-        const instructions: TransactionInstruction[] = [
-          SystemProgram.transfer({
-            fromPubkey: alice.publicKey,
-            toPubkey: coby.publicKey,
-            lamports: 30,
-          }),
-        ];
-
-        gaslessTxn.addInstructions(instructions).asyncBuildAndExecute((error, txid) => {
-          expect(error).toBe(null);
-          expect(typeof txid).toBe("string"); // txid in base58 encoding
-        });
-
-        await sleep(1000);
-        const pendingPuzzles = await getPendingPuzzles(connection, alice.publicKey);
-        expect(pendingPuzzles).toBe(1);
+        // } catch (error) {
+        //   console.log(error);
+        // }
       },
       10 * 1000
     );
@@ -190,4 +186,27 @@ describe("POW integration gasless service", () => {
       10 * 1000
     );
   });
+
+  it(
+    "asyncBuildAndExecute should be success when transfer native token",
+    async () => {
+      const instructions: TransactionInstruction[] = [
+        SystemProgram.transfer({
+          fromPubkey: alice.publicKey,
+          toPubkey: coby.publicKey,
+          lamports: 30,
+        }),
+      ];
+
+      gaslessTxn.addInstructions(instructions).asyncBuildAndExecute((error, txid) => {
+        expect(error).toBe(null);
+        expect(typeof txid).toBe("string"); // txid in base58 encoding
+      });
+
+      await sleep(1000);
+      const pendingPuzzles = await getPendingPuzzles(connection, alice.publicKey);
+      expect(pendingPuzzles).toBe(1);
+    },
+    10 * 1000
+  );
 });
