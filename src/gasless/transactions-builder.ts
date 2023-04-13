@@ -1,6 +1,12 @@
-import { Connection, Signer, Transaction, TransactionInstruction } from "@solana/web3.js";
+import {
+  Connection,
+  Signer,
+  Transaction,
+  TransactionInstruction,
+  PublicKey,
+} from "@solana/web3.js";
 import { GaslessDapp } from "../dapp";
-import { GaslessTypes } from "./types";
+import { GaslessTypes, SignedPuzzle } from "./types";
 import {
   RawSubmitSolution,
   getPuzzle,
@@ -69,33 +75,22 @@ export class GaslessTransaction {
     return this;
   }
 
-  // async build(gaslessType?: GaslessTypes): Promise<Transaction> {
-  //   if (gaslessType) {
-  //     this.gaslessType = gaslessType;
-  //   } else {
-  //     // Automatically detect the dapp type
-  //     if (this.dapp.hasDappInstruction(this.transaction)) {
-  //       this.gaslessType = GaslessTypes.Dapp;
-  //     }
-  //   }
-  //   const { feePayer } = await getGaslessInfo(this.connection);
+  async getPuzzleAndEstimateTime(): Promise<{ puzzle: SignedPuzzle; estHandlingTime: number }> {
+    if (this.gaslessType !== GaslessTypes.POW) {
+      throw Error(`${this.gaslessType} not supported`);
+    }
+    const puzzle = await getPuzzle(this.connection, this.wallet.publicKey);
+    return { puzzle, estHandlingTime: POWPuzzle.estHandlingTime(puzzle) };
+  }
 
-  //   if (this.gaslessType === GaslessTypes.Dapp) {
-  //     this.transaction = await this.dapp.build(this.transaction, this.wallet.publicKey, feePayer);
-  //   } else if (this.gaslessType === GaslessTypes.POW) {
-  //     // TODO:
-  //   } else {
-  //     throw Error(`${this.gaslessType} not supported`);
-  //   }
-  //   this.transaction.feePayer = feePayer;
-  //   this.transaction.recentBlockhash = (await this.connection.getRecentBlockhash()).blockhash;
-
-  //   for (let i = 0; i < this.signers.length; i++) {
-  //     const s = this.signers[i];
-  //     this.transaction.sign(s);
-  //   }
-  //   return this.transaction;
-  // }
+  async solveAndSubmit(puzzle: SignedPuzzle): Promise<string> {
+    if (this.gaslessType !== GaslessTypes.POW) {
+      throw Error(`${this.gaslessType} not supported`);
+    }
+    const { feePayer } = await getGaslessInfo(this.connection);
+    const txid = await this._solveAndSubmitPuzzle(feePayer, puzzle);
+    return txid;
+  }
 
   async buildAndExecute(): Promise<string> {
     // Automatically detect the dapp type
@@ -117,35 +112,40 @@ export class GaslessTransaction {
       return txid;
     } else if (this.gaslessType === GaslessTypes.POW) {
       const puzzle = await getPuzzle(this.connection, this.wallet.publicKey);
-      const solution = await POWPuzzle.solveAsync(Question.fromObject(puzzle.question));
-      const rawSolution: RawSubmitSolution = {
-        address: this.wallet.publicKey.toBase58(),
-        solution: solution.toString(16),
-        ...puzzle,
-      };
-
-      // pay for initializing token account fee
-      this.transaction = TokenUtil.replaceFundingAccountOfCreateATAIx(this.transaction, feePayer);
-
-      // check if we can submit solution at this point (now >= puzzle.allowedSubmissionAt)
-      const now = Math.floor(Date.now() / 1000);
-      if (puzzle.allowedSubmissionAt && now < puzzle.allowedSubmissionAt) {
-        await sleep((puzzle.allowedSubmissionAt - now) * 1000);
-      }
-
-      this.transaction.feePayer = feePayer;
-      this.transaction.recentBlockhash = (await this.connection.getRecentBlockhash()).blockhash;
-
-      for (let i = 0; i < this.signers.length; i++) {
-        const s = this.signers[i];
-        this.transaction.sign(s);
-      }
-      this.transaction = await this.wallet.signTransaction(this.transaction);
-      const txid = await postSolution(this.connection, rawSolution, this.transaction);
+      const txid = await this._solveAndSubmitPuzzle(feePayer, puzzle);
       return txid;
     } else {
       throw Error(`${this.gaslessType} not supported`);
     }
+  }
+
+  private async _solveAndSubmitPuzzle(feePayer: PublicKey, puzzle: SignedPuzzle): Promise<string> {
+    const solution = await POWPuzzle.solveAsync(Question.fromObject(puzzle.question));
+    const rawSolution: RawSubmitSolution = {
+      address: this.wallet.publicKey.toBase58(),
+      solution: solution.toString(16),
+      ...puzzle,
+    };
+
+    // pay for initializing token account fee
+    this.transaction = TokenUtil.replaceFundingAccountOfCreateATAIx(this.transaction, feePayer);
+
+    // check if we can submit solution at this point (now >= puzzle.allowedSubmissionAt)
+    const now = Math.floor(Date.now() / 1000);
+    if (puzzle.allowedSubmissionAt && now < puzzle.allowedSubmissionAt) {
+      await sleep((puzzle.allowedSubmissionAt - now) * 1000);
+    }
+
+    this.transaction.feePayer = feePayer;
+    this.transaction.recentBlockhash = (await this.connection.getRecentBlockhash()).blockhash;
+
+    for (let i = 0; i < this.signers.length; i++) {
+      const s = this.signers[i];
+      this.transaction.sign(s);
+    }
+    this.transaction = await this.wallet.signTransaction(this.transaction);
+    const txid = await postSolution(this.connection, rawSolution, this.transaction);
+    return txid;
   }
 
   asyncBuildAndExecute(cb: (error: any, txid: string) => void): void {
