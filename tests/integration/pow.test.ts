@@ -21,14 +21,14 @@ import { Token, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/sp
 const A_SOL = 1_000_000_000;
 
 describe("POW integration gasless service", () => {
-  const DEFAULT_RPC_ENDPOINT_URL = "http://127.0.0.1:8899";
+  const DEFAULT_RPC_ENDPOINT_URL = "https://api-testnet.renec.foundation:8899/";
   const connection = new Connection(DEFAULT_RPC_ENDPOINT_URL, "confirmed");
   const alice = Keypair.generate();
   const bob = Keypair.generate();
   const coby = Keypair.generate();
 
   const aliceWallet = new Wallet(alice);
-  let dappUtil;
+  let dappUtil: GaslessDapp;
   let gaslessTxn: GaslessTransaction;
   let mockMint: Token;
   let aliceATA: PublicKey;
@@ -57,7 +57,7 @@ describe("POW integration gasless service", () => {
     await sleep(1000);
     await mockMint.mintTo(aliceATA, alice, [], A_SOL);
     await sleep(1000);
-  }, 20 * 1000);
+  }, 25 * 1000);
 
   beforeEach(async () => {
     // set up variables for testing
@@ -103,6 +103,8 @@ describe("POW integration gasless service", () => {
     it(
       "buildAndExecute should be success when transfer native token",
       async () => {
+        const _gaslessTxn = new GaslessTransaction(connection, aliceWallet, dappUtil);
+
         const instructions: TransactionInstruction[] = [
           SystemProgram.transfer({
             fromPubkey: alice.publicKey,
@@ -124,18 +126,20 @@ describe("POW integration gasless service", () => {
         // console.log(txid);
 
         // try {
-        const txid = await gaslessTxn.addInstructions(instructions).buildAndExecute();
+        const txid = await _gaslessTxn.addInstructions(instructions).buildAndExecute();
         expect(typeof txid).toBe("string"); // txid in base58 encoding
         // } catch (error) {
         //   console.log(error);
         // }
       },
-      10 * 1000
+      20 * 1000
     );
 
     it(
       "buildAndExecute should be success",
       async () => {
+        const _gaslessTxn = new GaslessTransaction(connection, aliceWallet, dappUtil);
+
         const instructions: TransactionInstruction[] = [
           Token.createTransferInstruction(
             TOKEN_PROGRAM_ID,
@@ -146,15 +150,17 @@ describe("POW integration gasless service", () => {
             10
           ),
         ];
-        const txid = await gaslessTxn.addInstructions(instructions).buildAndExecute();
+        const txid = await _gaslessTxn.addInstructions(instructions).buildAndExecute();
         expect(typeof txid).toBe("string"); // txid in base58 encoding
       },
-      10 * 1000
+      15 * 1000
     );
 
     it(
       "buildAndExecute should replace fee payer of create ata instruction",
       async () => {
+        const _gaslessTxn = new GaslessTransaction(connection, aliceWallet, dappUtil);
+
         const bobATA = await Token.getAssociatedTokenAddress(
           ASSOCIATED_TOKEN_PROGRAM_ID,
           TOKEN_PROGRAM_ID,
@@ -180,33 +186,63 @@ describe("POW integration gasless service", () => {
           ),
         ];
 
-        const txid = await gaslessTxn.addInstructions(instructions).buildAndExecute();
+        const txid = await _gaslessTxn.addInstructions(instructions).buildAndExecute();
         expect(typeof txid).toBe("string"); // txid in base58 encoding
       },
-      10 * 1000
+      15 * 1000
     );
   });
 
-  it(
-    "asyncBuildAndExecute should be success when transfer native token",
-    async () => {
-      const instructions: TransactionInstruction[] = [
-        SystemProgram.transfer({
-          fromPubkey: alice.publicKey,
-          toPubkey: coby.publicKey,
-          lamports: 30,
-        }),
-      ];
+  describe("getPuzzleAndEstimateTime & solveAndSubmit", () => {
+    it(
+      "getPuzzleAndEstimateTime & solveAndSubmit should be success when transfer native token",
+      async () => {
+        const _gaslessTxn = new GaslessTransaction(connection, aliceWallet, dappUtil);
 
-      gaslessTxn.addInstructions(instructions).asyncBuildAndExecute((error, txid) => {
-        expect(error).toBe(null);
+        const instructions: TransactionInstruction[] = [
+          SystemProgram.transfer({
+            fromPubkey: alice.publicKey,
+            toPubkey: coby.publicKey,
+            lamports: 30,
+          }),
+        ];
+
+        const { puzzle, estHandlingTime } = await _gaslessTxn
+          .addInstructions(instructions)
+          .getPuzzleAndEstimateTime();
+
+        expect(estHandlingTime).toBeGreaterThan(0);
+        const txid = await _gaslessTxn.solveAndSubmit(puzzle);
         expect(typeof txid).toBe("string"); // txid in base58 encoding
-      });
+      },
+      20 * 1000
+    );
+  });
 
-      await sleep(1000);
-      const pendingPuzzles = await getPendingPuzzles(connection, alice.publicKey);
-      expect(pendingPuzzles).toBe(1);
-    },
-    10 * 1000
-  );
+  describe("asyncBuildAndExecute", () => {
+    it(
+      "asyncBuildAndExecute should be success when transfer native token",
+      async () => {
+        const gasless = new GaslessTransaction(connection, aliceWallet, dappUtil);
+
+        const instructions: TransactionInstruction[] = [
+          SystemProgram.transfer({
+            fromPubkey: alice.publicKey,
+            toPubkey: coby.publicKey,
+            lamports: 30,
+          }),
+        ];
+
+        gasless.addInstructions(instructions).asyncBuildAndExecute((error, txid) => {
+          expect(error).toBe(null);
+          expect(typeof txid).toBe("string"); // txid in base58 encoding
+        });
+
+        await sleep(1000);
+        const pendingPuzzles = await getPendingPuzzles(connection, alice.publicKey);
+        expect(pendingPuzzles).toBe(1);
+      },
+      20 * 1000
+    );
+  });
 });
