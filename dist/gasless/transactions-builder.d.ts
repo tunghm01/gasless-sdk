@@ -1,6 +1,6 @@
 import { Connection, Signer, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { GaslessDapp } from "../dapp";
-import { GaslessTypes } from "./types";
+import { GaslessTypes, SignedPuzzle } from "./types";
 import { Wallet } from "@project-serum/anchor";
 export type CompressedIx = {
     instructions: TransactionInstruction[];
@@ -19,6 +19,12 @@ export declare class GaslessTransaction {
     addSigners(signers: Signer[]): GaslessTransaction;
     addInstructions(ixs: TransactionInstruction[]): GaslessTransaction;
     setGaslessType(gaslessType: GaslessTypes): GaslessTransaction;
+    getPuzzleAndEstimateTime(): Promise<{
+        puzzle: SignedPuzzle;
+        estHandlingTime: number;
+    }>;
+    solveAndSubmit(puzzle: SignedPuzzle): Promise<string>;
     buildAndExecute(): Promise<string>;
+    private _solveAndSubmitPuzzle;
     asyncBuildAndExecute(cb: (error: any, txid: string) => void): void;
 }

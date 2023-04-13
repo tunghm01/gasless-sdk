@@ -47,31 +47,25 @@ class GaslessTransaction {
         this.gaslessType = gaslessType;
         return this;
     }
-    // async build(gaslessType?: GaslessTypes): Promise<Transaction> {
-    //   if (gaslessType) {
-    //     this.gaslessType = gaslessType;
-    //   } else {
-    //     // Automatically detect the dapp type
-    //     if (this.dapp.hasDappInstruction(this.transaction)) {
-    //       this.gaslessType = GaslessTypes.Dapp;
-    //     }
-    //   }
-    //   const { feePayer } = await getGaslessInfo(this.connection);
-    //   if (this.gaslessType === GaslessTypes.Dapp) {
-    //     this.transaction = await this.dapp.build(this.transaction, this.wallet.publicKey, feePayer);
-    //   } else if (this.gaslessType === GaslessTypes.POW) {
-    //     // TODO:
-    //   } else {
-    //     throw Error(`${this.gaslessType} not supported`);
-    //   }
-    //   this.transaction.feePayer = feePayer;
-    //   this.transaction.recentBlockhash = (await this.connection.getRecentBlockhash()).blockhash;
-    //   for (let i = 0; i < this.signers.length; i++) {
-    //     const s = this.signers[i];
-    //     this.transaction.sign(s);
-    //   }
-    //   return this.transaction;
-    // }
+    getPuzzleAndEstimateTime() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this.gaslessType !== types_1.GaslessTypes.POW) {
+                throw Error(`${this.gaslessType} not supported`);
+            }
+            const puzzle = yield (0, gasless_1.getPuzzle)(this.connection, this.wallet.publicKey);
+            return { puzzle, estHandlingTime: pow_1.POWPuzzle.estHandlingTime(puzzle) };
+        });
+    }
+    solveAndSubmit(puzzle) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this.gaslessType !== types_1.GaslessTypes.POW) {
+                throw Error(`${this.gaslessType} not supported`);
+            }
+            const { feePayer } = yield (0, gasless_1.getGaslessInfo)(this.connection);
+            const txid = yield this._solveAndSubmitPuzzle(feePayer, puzzle);
+            return txid;
+        });
+    }
     buildAndExecute() {
         return __awaiter(this, void 0, void 0, function* () {
             // Automatically detect the dapp type
@@ -93,28 +87,34 @@ class GaslessTransaction {
             }
             else if (this.gaslessType === types_1.GaslessTypes.POW) {
                 const puzzle = yield (0, gasless_1.getPuzzle)(this.connection, this.wallet.publicKey);
-                const solution = yield pow_1.POWPuzzle.solveAsync(pow_1.Question.fromObject(puzzle.question));
-                const rawSolution = Object.assign({ address: this.wallet.publicKey.toBase58(), solution: solution.toString(16) }, puzzle);
-                // pay for initializing token account fee
-                this.transaction = helpers_1.TokenUtil.replaceFundingAccountOfCreateATAIx(this.transaction, feePayer);
-                // check if we can submit solution at this point (now >= puzzle.allowedSubmissionAt)
-                const now = Math.floor(Date.now() / 1000);
-                if (puzzle.allowedSubmissionAt && now < puzzle.allowedSubmissionAt) {
-                    yield (0, helpers_1.sleep)((puzzle.allowedSubmissionAt - now) * 1000);
-                }
-                this.transaction.feePayer = feePayer;
-                this.transaction.recentBlockhash = (yield this.connection.getRecentBlockhash()).blockhash;
-                for (let i = 0; i < this.signers.length; i++) {
-                    const s = this.signers[i];
-                    this.transaction.sign(s);
-                }
-                this.transaction = yield this.wallet.signTransaction(this.transaction);
-                const txid = yield (0, gasless_1.postSolution)(this.connection, rawSolution, this.transaction);
+                const txid = yield this._solveAndSubmitPuzzle(feePayer, puzzle);
                 return txid;
             }
             else {
                 throw Error(`${this.gaslessType} not supported`);
             }
+        });
+    }
+    _solveAndSubmitPuzzle(feePayer, puzzle) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const solution = yield pow_1.POWPuzzle.solveAsync(pow_1.Question.fromObject(puzzle.question));
+            const rawSolution = Object.assign({ address: this.wallet.publicKey.toBase58(), solution: solution.toString(16) }, puzzle);
+            // pay for initializing token account fee
+            this.transaction = helpers_1.TokenUtil.replaceFundingAccountOfCreateATAIx(this.transaction, feePayer);
+            // check if we can submit solution at this point (now >= puzzle.allowedSubmissionAt)
+            const now = Math.floor(Date.now() / 1000);
+            if (puzzle.allowedSubmissionAt && now < puzzle.allowedSubmissionAt) {
+                yield (0, helpers_1.sleep)((puzzle.allowedSubmissionAt - now) * 1000);
+            }
+            this.transaction.feePayer = feePayer;
+            this.transaction.recentBlockhash = (yield this.connection.getRecentBlockhash()).blockhash;
+            for (let i = 0; i < this.signers.length; i++) {
+                const s = this.signers[i];
+                this.transaction.sign(s);
+            }
+            this.transaction = yield this.wallet.signTransaction(this.transaction);
+            const txid = yield (0, gasless_1.postSolution)(this.connection, rawSolution, this.transaction);
+            return txid;
         });
     }
     asyncBuildAndExecute(cb) {

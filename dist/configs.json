@@ -12,6 +12,6 @@
     {
         "name": "mainnet",
         "genesisHash": "7PNFRHLxT9FcAxSUcg3P8BraJnnUBnjuy8LwRbRJvVkX",
-        "gasLessServiceURL": "https://master.d2qjlpuikx6xmz.amplifyapp.com/api"
+        "gasLessServiceURL": "https://master.d17ca58kvodymu.amplifyapp.com/api"
     }
 ]
