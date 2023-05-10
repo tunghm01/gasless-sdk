@@ -1,10 +1,12 @@
-import { NATIVE_MINT } from "@solana/spl-token";
-import { Transaction, PublicKey } from "@solana/web3.js";
+import { NATIVE_MINT, MintLayout } from "@solana/spl-token";
+import { Transaction, PublicKey, SystemInstruction } from "@solana/web3.js";
 import {
   decodeCloseAccountInstruction,
   decodeInitializeAccountInstruction,
   decodeCreateAssociatedTokenInstruction,
 } from "./decoder";
+
+export const RENT_EXEMPT_MINT = 1461600;
 
 /**
  * @category Util
@@ -69,6 +71,29 @@ export class TokenUtil {
         decodeCreateAssociatedTokenInstruction(ix);
         // reassign funding account to fee payer
         ix.keys[0].pubkey = feePayer;
+      } catch (e) {
+        // ignore
+      }
+    });
+    return transaction;
+  }
+
+  public static replaceFundingAccountOfCreateMintAccountIx(
+    transaction: Transaction,
+    feePayer: PublicKey
+  ): Transaction {
+    transaction.instructions.forEach((ix) => {
+      try {
+        const createAccountParams = SystemInstruction.decodeCreateAccount(ix);
+
+        if (
+          createAccountParams.space === MintLayout.span &&
+          createAccountParams.lamports === RENT_EXEMPT_MINT &&
+          createAccountParams.fromPubkey.toBase58() === ix.keys[0].pubkey.toBase58()
+        ) {
+          // reassign funding account to fee payer
+          ix.keys[0].pubkey = feePayer;
+        }
       } catch (e) {
         // ignore
       }

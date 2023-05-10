@@ -127,7 +127,13 @@ export class GaslessTransaction {
       ...puzzle,
     };
 
-    // pay for initializing token account fee
+    // pay for initializing mint account fee if needed
+    this.transaction = TokenUtil.replaceFundingAccountOfCreateMintAccountIx(
+      this.transaction,
+      feePayer
+    );
+
+    // pay for initializing token account fee if needed
     this.transaction = TokenUtil.replaceFundingAccountOfCreateATAIx(this.transaction, feePayer);
 
     // check if we can submit solution at this point (now >= puzzle.allowedSubmissionAt)
