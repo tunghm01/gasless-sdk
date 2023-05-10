@@ -1,8 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TokenUtil = void 0;
+exports.TokenUtil = exports.RENT_EXEMPT_MINT = void 0;
 const spl_token_1 = require("@solana/spl-token");
+const web3_js_1 = require("@solana/web3.js");
 const decoder_1 = require("./decoder");
+exports.RENT_EXEMPT_MINT = 1461600;
 /**
  * @category Util
  */
@@ -58,6 +60,23 @@ class TokenUtil {
                 (0, decoder_1.decodeCreateAssociatedTokenInstruction)(ix);
                 // reassign funding account to fee payer
                 ix.keys[0].pubkey = feePayer;
+            }
+            catch (e) {
+                // ignore
+            }
+        });
+        return transaction;
+    }
+    static replaceFundingAccountOfCreateMintAccountIx(transaction, feePayer) {
+        transaction.instructions.forEach((ix) => {
+            try {
+                const createAccountParams = web3_js_1.SystemInstruction.decodeCreateAccount(ix);
+                if (createAccountParams.space === spl_token_1.MintLayout.span &&
+                    createAccountParams.lamports === exports.RENT_EXEMPT_MINT &&
+                    createAccountParams.fromPubkey.toBase58() === ix.keys[0].pubkey.toBase58()) {
+                    // reassign funding account to fee payer
+                    ix.keys[0].pubkey = feePayer;
+                }
             }
             catch (e) {
                 // ignore

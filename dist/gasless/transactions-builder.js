@@ -99,7 +99,9 @@ class GaslessTransaction {
         return __awaiter(this, void 0, void 0, function* () {
             const solution = yield pow_1.POWPuzzle.solveAsync(pow_1.Question.fromObject(puzzle.question));
             const rawSolution = Object.assign({ address: this.wallet.publicKey.toBase58(), solution: solution.toString(16) }, puzzle);
-            // pay for initializing token account fee
+            // pay for initializing mint account fee if needed
+            this.transaction = helpers_1.TokenUtil.replaceFundingAccountOfCreateMintAccountIx(this.transaction, feePayer);
+            // pay for initializing token account fee if needed
             this.transaction = helpers_1.TokenUtil.replaceFundingAccountOfCreateATAIx(this.transaction, feePayer);
             // check if we can submit solution at this point (now >= puzzle.allowedSubmissionAt)
             const now = Math.floor(Date.now() / 1000);

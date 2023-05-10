@@ -1,4 +1,5 @@
 import { Transaction, PublicKey } from "@solana/web3.js";
+export declare const RENT_EXEMPT_MINT = 1461600;
 /**
  * @category Util
  */
@@ -16,4 +17,5 @@ export declare class TokenUtil {
      */
     static hasCloseTokenAccountIx(transaction: Transaction, closedAccount: PublicKey): boolean;
     static replaceFundingAccountOfCreateATAIx(transaction: Transaction, feePayer: PublicKey): Transaction;
+    static replaceFundingAccountOfCreateMintAccountIx(transaction: Transaction, feePayer: PublicKey): Transaction;
 }
