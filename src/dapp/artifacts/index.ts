@@ -16,22 +16,47 @@ export type DappInfo = {
   idl: Object;
 };
 
-const exampleDapps: DappInfo[] = [
+const dappsDevnet: DappInfo[] = [
   {
     name: "NemoSwap",
-    programId: "7Vd9eYAH2MZxD6LYHEnDs8Eko9Bx3UydvtNvnJ8vKW21",
+    programId: "7yyFRQehBQjdSpWYV93jWh4558YbWmc4ofbMWzKTPyJL",
     idl: WhirlpoolIDL,
   },
 ];
 
+const dappsTestnet: DappInfo[] = [
+  {
+    name: "NemoSwap",
+    programId: "7yyFRQehBQjdSpWYV93jWh4558YbWmc4ofbMWzKTPyJL",
+    idl: WhirlpoolIDL,
+  },
+];
+
+const dappsMainnet: DappInfo[] = [
+  {
+    name: "NemoSwap",
+    programId: "7rh7ZtPzHqdY82RWjHf1Q8NaQiWnyNqkC48vSixcBvad",
+    idl: WhirlpoolIDL,
+  },
+];
+
+const dapps = {
+  devnet: dappsDevnet,
+  testnet: dappsTestnet,
+  mainnet: dappsMainnet,
+};
+
 export function loadArtifacts(network: NetworkConfig): Artifact[] {
   const artifacts: Artifact[] = [];
 
-  // user network to get dapps info
-  const dapps = exampleDapps; // get from gasless
+  // use network to get dapps info
+  if (network.name !== "devnet" && network.name !== "testnet" && network.name !== "mainnet") {
+    throw new Error("network is unsupport");
+  }
+  const _dapps = dapps[network.name];
 
-  if (dapps.length > 0) {
-    dapps.forEach((dapp) => {
+  if (_dapps.length > 0) {
+    _dapps.forEach((dapp) => {
       artifacts.push({
         name: dapp.name,
         programId: new PublicKey(dapp.programId),
