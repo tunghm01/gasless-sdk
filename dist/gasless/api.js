@@ -44,7 +44,7 @@ function sendToGasless(connection, signed, type) {
         const network = yield getNetwork(connection);
         const buff = signed.serialize({ requireAllSignatures: false });
         const serializedBs58 = bs58_1.default.encode(buff);
-        const response = (yield axios_1.default.post(network.gasLessServiceURL + `/${type}/submit`, {
+        const response = (yield axios_1.default.post(network.gasLessServiceURL + `/v1/dapp/send`, {
             transaction: serializedBs58,
         })).data;
         const txid = response === null || response === void 0 ? void 0 : response.signature;

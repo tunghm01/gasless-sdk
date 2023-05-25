@@ -33,7 +33,7 @@ export async function sendToGasless(
   const buff = signed.serialize({ requireAllSignatures: false });
   const serializedBs58 = base58.encode(buff);
   const response = (
-    await axios.post(network.gasLessServiceURL + `/${type}/submit`, {
+    await axios.post(network.gasLessServiceURL + `/v1/dapp/send`, {
       transaction: serializedBs58,
     })
   ).data;
