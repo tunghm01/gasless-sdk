@@ -93,9 +93,9 @@ describe("puzzle in pow", () => {
     });
   });
 
-  describe("time1MHashes", () => {
+  describe("time100Hashes", () => {
     it("should return an accurate time in milliseconds to hash 1 million times", () => {
-      const actualTime = POWPuzzle.time1MHashes();
+      const actualTime = POWPuzzle.time100Hashes();
       expect(actualTime).toBeGreaterThan(0);
     });
   });

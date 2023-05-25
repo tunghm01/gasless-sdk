@@ -1,10 +1,10 @@
 {
-  "name": "@renec/gasless-sdk",
-  "version": "0.1.9",
+  "name": "@renec-foundation/gasless-sdk",
+  "version": "0.1.0",
   "description": "SDK for gasless service",
   "author": "Renec Foundation",
   "contributors": [
-    "tunghoang@remitano.com"
+    "dev@renec.foundation"
   ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
