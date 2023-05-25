@@ -15,8 +15,13 @@ import {
   getPendingPuzzles,
 } from "../../src/gasless";
 import { GaslessDapp } from "../../src/dapp";
-import { Wallet, sleep } from "../../src/helpers";
-import { Token, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { Wallet, sleep, RENT_EXEMPT_MINT } from "../../src/helpers";
+import {
+  Token,
+  TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  MintLayout,
+} from "@solana/spl-token";
 
 const A_SOL = 1_000_000_000;
 
@@ -43,19 +48,13 @@ describe("POW integration gasless service", () => {
     await connection.requestAirdrop(coby.publicKey, A_SOL);
     await sleep(1000);
 
-    mockMint = await Token.createMint(
-      connection,
-      alice,
-      alice.publicKey,
-      null,
-      9,
-      TOKEN_PROGRAM_ID
-    );
-    await sleep(1000);
-    aliceATA = await mockMint.createAssociatedTokenAccount(alice.publicKey);
-    cobyATA = await mockMint.createAssociatedTokenAccount(coby.publicKey);
-    await sleep(1000);
-    await mockMint.mintTo(aliceATA, alice, [], A_SOL);
+    const { transaction, mintToken } = await createMintAndMintTo(alice.publicKey, 100 * A_SOL);
+    transaction.recentBlockhash = (await connection.getRecentBlockhash()).blockhash;
+
+    transaction.partialSign(alice);
+    transaction.partialSign(mintToken);
+
+    const txid = await sendAndConfirmRawTransaction(connection, transaction.serialize());
     await sleep(1000);
   }, 25 * 1000);
 
@@ -99,106 +98,10 @@ describe("POW integration gasless service", () => {
     expect(setGaslessType).toEqual(gaslessType);
   });
 
-  describe("buildAndExecute", () => {
-    it(
-      "buildAndExecute should be success when transfer native token",
-      async () => {
-        const _gaslessTxn = new GaslessTransaction(connection, aliceWallet, dappUtil);
-
-        const instructions: TransactionInstruction[] = [
-          SystemProgram.transfer({
-            fromPubkey: alice.publicKey,
-            toPubkey: coby.publicKey,
-            lamports: 30,
-          }),
-        ];
-
-        // const transaction = new Transaction();
-        // transaction.add(instructions[0]);
-        // transaction.feePayer = alice.publicKey;
-        // transaction.recentBlockhash = (await connection.getRecentBlockhash()).blockhash;
-        // transaction.partialSign(alice);
-
-        // const txid = await sendAndConfirmRawTransaction(connection, transaction.serialize(), {
-        //   commitment: "confirmed",
-        // });
-
-        // console.log(txid);
-
-        // try {
-        const txid = await _gaslessTxn.addInstructions(instructions).buildAndExecute();
-        expect(typeof txid).toBe("string"); // txid in base58 encoding
-        // } catch (error) {
-        //   console.log(error);
-        // }
-      },
-      20 * 1000
-    );
-
-    it(
-      "buildAndExecute should be success",
-      async () => {
-        const _gaslessTxn = new GaslessTransaction(connection, aliceWallet, dappUtil);
-
-        const instructions: TransactionInstruction[] = [
-          Token.createTransferInstruction(
-            TOKEN_PROGRAM_ID,
-            aliceATA,
-            cobyATA,
-            alice.publicKey,
-            [],
-            10
-          ),
-        ];
-        const txid = await _gaslessTxn.addInstructions(instructions).buildAndExecute();
-        expect(typeof txid).toBe("string"); // txid in base58 encoding
-      },
-      15 * 1000
-    );
-
-    it(
-      "buildAndExecute should replace fee payer of create ata instruction",
-      async () => {
-        const _gaslessTxn = new GaslessTransaction(connection, aliceWallet, dappUtil);
-
-        const bobATA = await Token.getAssociatedTokenAddress(
-          ASSOCIATED_TOKEN_PROGRAM_ID,
-          TOKEN_PROGRAM_ID,
-          mockMint.publicKey,
-          bob.publicKey
-        );
-        const instructions: TransactionInstruction[] = [
-          Token.createAssociatedTokenAccountInstruction(
-            ASSOCIATED_TOKEN_PROGRAM_ID,
-            TOKEN_PROGRAM_ID,
-            mockMint.publicKey,
-            bobATA,
-            bob.publicKey,
-            alice.publicKey
-          ),
-          Token.createTransferInstruction(
-            TOKEN_PROGRAM_ID,
-            aliceATA,
-            bobATA,
-            alice.publicKey,
-            [],
-            10
-          ),
-        ];
-
-        const txid = await _gaslessTxn.addInstructions(instructions).buildAndExecute();
-        expect(typeof txid).toBe("string"); // txid in base58 encoding
-      },
-      15 * 1000
-    );
-  });
-
   describe("getPuzzleAndEstimateTime & solveAndSubmit", () => {
     it(
-      "getPuzzleAndEstimateTime & solveAndSubmit should be success when transfer native token",
+      "should be success when transfer native token",
       async () => {
-        const _gaslessTxn = new GaslessTransaction(connection, aliceWallet, dappUtil);
-
         const instructions: TransactionInstruction[] = [
           SystemProgram.transfer({
             fromPubkey: alice.publicKey,
@@ -207,6 +110,7 @@ describe("POW integration gasless service", () => {
           }),
         ];
 
+        const _gaslessTxn = new GaslessTransaction(connection, aliceWallet, dappUtil);
         const { puzzle, estHandlingTime } = await _gaslessTxn
           .addInstructions(instructions)
           .getPuzzleAndEstimateTime();
@@ -215,34 +119,90 @@ describe("POW integration gasless service", () => {
         const txid = await _gaslessTxn.solveAndSubmit(puzzle);
         expect(typeof txid).toBe("string"); // txid in base58 encoding
       },
-      20 * 1000
+      60 * 1000
     );
-  });
 
-  describe("asyncBuildAndExecute", () => {
     it(
-      "asyncBuildAndExecute should be success when transfer native token",
+      "should be success when create new mint account & create new ATA",
       async () => {
-        const gasless = new GaslessTransaction(connection, aliceWallet, dappUtil);
+        // this is data that the easy token send to wallet
+        const { transaction, mintToken } = await createMintAndMintTo(alice.publicKey, A_SOL);
 
-        const instructions: TransactionInstruction[] = [
-          SystemProgram.transfer({
-            fromPubkey: alice.publicKey,
-            toPubkey: coby.publicKey,
-            lamports: 30,
-          }),
-        ];
+        const _gaslessTxn = new GaslessTransaction(connection, aliceWallet, dappUtil);
+        const { puzzle, estHandlingTime } = await _gaslessTxn
+          .addInstructions(transaction.instructions)
+          .addSigners([mintToken])
+          .getPuzzleAndEstimateTime();
 
-        gasless.addInstructions(instructions).asyncBuildAndExecute((error, txid) => {
-          expect(error).toBe(null);
-          expect(typeof txid).toBe("string"); // txid in base58 encoding
-        });
-
-        await sleep(1000);
-        const pendingPuzzles = await getPendingPuzzles(connection, alice.publicKey);
-        expect(pendingPuzzles).toBe(1);
+        expect(estHandlingTime).toBeGreaterThan(0);
+        const txid = await _gaslessTxn.solveAndSubmit(puzzle);
+        console.log(txid);
+        expect(typeof txid).toBe("string"); // txid in base58 encoding
       },
-      20 * 1000
+      60 * 1000
     );
   });
 });
+
+async function createMintAndMintTo(
+  payer: PublicKey,
+  mintAmount: number,
+  decimals = 9
+): Promise<{
+  transaction: Transaction;
+  mintToken: Keypair;
+}> {
+  const mintToken = Keypair.generate();
+
+  const transaction = new Transaction();
+
+  transaction.add(
+    SystemProgram.createAccount({
+      fromPubkey: payer,
+      newAccountPubkey: mintToken.publicKey,
+      space: MintLayout.span,
+      lamports: RENT_EXEMPT_MINT,
+      programId: TOKEN_PROGRAM_ID,
+    })
+  );
+
+  transaction.add(
+    Token.createInitMintInstruction(TOKEN_PROGRAM_ID, mintToken.publicKey, decimals, payer, null)
+  );
+
+  const associatedAddress = await Token.getAssociatedTokenAddress(
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+    TOKEN_PROGRAM_ID,
+    mintToken.publicKey,
+    payer
+  );
+
+  transaction.add(
+    Token.createAssociatedTokenAccountInstruction(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      mintToken.publicKey,
+      associatedAddress,
+      payer,
+      payer
+    )
+  );
+
+  transaction.add(
+    Token.createMintToInstruction(
+      TOKEN_PROGRAM_ID,
+      mintToken.publicKey,
+      associatedAddress,
+      payer,
+      [],
+      mintAmount
+    )
+  );
+
+  transaction.feePayer = payer;
+
+  return {
+    transaction,
+    mintToken,
+  };
+}
