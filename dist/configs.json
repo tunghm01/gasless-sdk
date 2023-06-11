@@ -7,7 +7,7 @@
     {
         "name": "testnet",
         "genesisHash": "3boguCuaPpn6vkaxiGDfcR8yYcokzFDuu3sqWLVoAoUh",
-        "gasLessServiceURL": "https://pr-12.d2qjlpuikx6xmz.amplifyapp.com/api"
+        "gasLessServiceURL": "https://staging.d17ca58kvodymu.amplifyapp.com/api"
     },
     {
         "name": "mainnet",
